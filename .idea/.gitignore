@@ -1,5 +1,5 @@
 # Default ignored files
 /shelf/
 /workspace.xml
-/occupancy_log.csv
-/yolov8n.pt
+/src/occupancy_log.csv
+/src/yolov8n.pt
