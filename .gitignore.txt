@@ -1,0 +1,2 @@
+occupancy_log.csv
+yolov8n.pt
