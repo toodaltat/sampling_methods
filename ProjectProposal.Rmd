@@ -1,0 +1,55 @@
+---
+title: "STAT312 Project Proposal"
+author: "Ethan Milne (74465159) & Marcel Soanes (22748260)"
+date: "2026-03-19"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Research objective
+
+The objective of this project is to determine how environmental factors such as sunlight, temperature, and proximity to roads affect where people choose to sit in public spaces. The purpose is to help understand, and potentially inform, design choices in public spaces including the placement of seats, tables, and environmental features to suit the needs of Cantabrians.
+
+### Data needs
+
+To answer this research objective, we will need to observe peoples choice of seating, and the conditions of those seats and the ambient environment. 
+
+### Data Collection
+
+We will observe seating behaviour in a public space such as Cathedral Square using a camera and machine vision to record table occupancy at fixed time intervals of 20 seconds and noting factors about those locations that may affect people's decisions. This can include data collected in the field, such as shade, and distance from the road, table capacity, and nearby occupants, and auxiliary data such as weather conditions, collected from Metservice.
+
+Though these needs will vary throughout the year with seasonal conditions, we will sample a single day in Autumn, using a combination of computer vision and manual categorization of the conditions. 
+
+#### Analysis
+
+Our initial approach will be to perform an exploratory data analysis to investigate patterns between seating behaviour and the predictors. Building a logistic model comes next where the response variable is a binary value representing occupied vs not occupied, and the predictors being spatial characteristics and environmental factors. To identify the most influential predictors we will use model selection techniques such as AIC. Finally, we will construct plots and graphs to visually represent the data and the conclusions we draw. 
+
+### Project timeline
+
+Mar 24 - Mar 30: Finish setting up the computer vision code and finalizing our plans for data collection
+
+Apr 1 - Apr 7 Collect data
+
+Apr 8 - Apr 14 Clean and preprocess data
+
+Apr 15 - Apr 21 Explore data
+
+Apr 21 - Apr 28 Evaluate statistical model
+
+Apr 28 - May 5 Draft report
+
+May 5 - May 22 Finalise report
+
+This schedule should leave us time in each stage to iterate if we encounter unexpected obstacles while ensuring the project keeps moxving forward. 
+
+
+### Ethical considerations
+
+Recording of people in public raises potential privacy concerns. To help mitigate this, we plan to process the image data promptly and then keep the original image files encrypted. Alternatively, we could discuss options regarding the obfuscation of particularly identifying features such as people's faces, while preserving the integrity of the data we intend to analyse.
+
+### Limitations
+
+The study is limited to a single day of data collection which will not allow us to capture variation across different days, seasons or events. Unobserved factors such as nearby events may influence seating behaviour. The field of view of a camera might not adequately capture overall usage and will further limit the range of data we can collect. We will acknowledge these limitations when interpreting the results. 
