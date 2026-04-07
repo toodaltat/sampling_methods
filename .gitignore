@@ -1,6 +1,25 @@
-occupancy_log.csv
-yolov8n.pt
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+
+# Environment variables
 .env
-output
-data
-.venv
+
+# Data + outputs
+output/
+data/
+*.csv
+
+# Model weights
+*.pt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
