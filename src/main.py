@@ -7,11 +7,28 @@ import numpy as np
 from ultralytics import YOLO
 from sort import Sort
 
-CAMERA_SOURCE = 0
+import os
+import requests
+from dotenv import load_dotenv
+from datetime import datetime, timezone
+
+load_dotenv()
+
+CAMERA_SOURCE = 0  # Needs to be changed to take video
 YOLO_MODEL = "yolov8n.pt"
-CONFIG_THRESHOLD = 0.35
+CONF_THRESHOLD = 0.35
 LOG_INTERVAL = 1.0
 
+weather_cache = {
+    "hour": None,
+    "temp_c": None
+}
+
+SITE_LAT = -43.5321
+SITE_LON = 172.6362
+
+# Define polygon coordinates for each table zone
+# These must be obtained manually from camera frame
 TABLE_ZONES = {
     "table_1": np.array([(50, 80), (50, 80), (50, 80), (50, 80)], dtype=np.int32),
     "table_2": np.array([(50, 80), (50, 80), (50, 80), (50, 80)], dtype=np.int32),
@@ -21,11 +38,21 @@ TABLE_ZONES = {
     "table_6": np.array([(50, 80), (50, 80), (50, 80), (50, 80)], dtype=np.int32),
 }
 
+TABLE_INFO = {
+    "table_1": {"dist_from_road": 12.4, "in_shadow": 1},
+    "table_2": {"dist_from_road": 5.8, "in_shadow": 0},
+    "table_3": {"dist_from_road": 9.1, "in_shadow": 1},
+    "table_4": {"dist_from_road": 7.3, "in_shadow": 0},
+    "table_5": {"dist_from_road": 15.2, "in_shadow": 1},
+    "table_6": {"dist_from_road": 10.0, "in_shadow": 0},
+}
+
 PERSON_CLASS_ID = 0
 
 # ---------------------------------
 # HELPERS
 # ---------------------------------
+
 
 def get_bottom_center(box):
     """
@@ -63,18 +90,18 @@ def assign_table(box, zones):
     return None
 
 
-def draw_zones(frames, zones):
+def draw_zones(frame, zones):
     """
     Draws zones
-    :param frames:
+    :param frame:
     :param zones:
     :return:
     """
     for table_name, polygon in zones.items():
-        cv2.polylines(frames, [polygon], isClosed=True, color=(255, 0, 0), thickness =2)
-        x,y = polygon[0]
+        cv2.polylines(frame, [polygon], isClosed=True, color=(255, 0, 0), thickness=2)
+        x, y = polygon[0]
         cv2.putText(
-            frames,
+            frame,
             table_name,
             (x, y - 10),
             cv2.FONT_HERSHEY_SIMPLEX,
@@ -83,10 +110,57 @@ def draw_zones(frames, zones):
             2,
         )
 
-def write_csv_row(csv_writer, timestamp, occupancy):
-    row = {"timestamp":timestamp}
-    row.update(occupancy)
-    csv_writer.writerow(row)
+
+def get_temperature(lat, lon):
+    API_KEY = os.getenv("METOCEAN_API_KEY")
+
+    url = "https://forecast-v2.metoceanapi.com/point/time"
+    headers = {
+        "x-api-key": API_KEY,
+        "accept": "application/json"
+    }
+
+    now_utc = datetime.now(timezone.utc)
+    from_time = now_utc.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    params = {
+        "lat": lat,
+        "lon": lon,
+        "variables": "air.temperature.at-2m",
+        "from": from_time,
+        "interval": "1h",
+        "repeat": 1
+    }
+
+    r = requests.get(url, headers=headers, params=params, timeout=20)
+    r.raise_for_status()
+
+    data = r.json()
+    temp_k = data["variables"]["air.temperature.at-2m"]["data"][0]
+    return round(temp_k - 273.15, 2)
+
+
+def get_cached_temperature(lat, lon):
+    current_hour = datetime.now().strftime("%Y-%m-%d %H")
+
+    if weather_cache["hour"] != current_hour:
+        weather_cache["temp_c"] = get_temperature(lat, lon)
+        weather_cache["hour"] = current_hour
+
+    return weather_cache["temp_c"]
+
+
+def write_csv_row(csv_writer, timestamp, occupancy, table_info, table_names, temp):
+    for table_name in table_names:
+        row = {
+            "timestamp": timestamp,
+            "table": table_name,
+            "occupancy": occupancy.get(table_name, 0),
+            "dist_from_road": table_info[table_name]["dist_from_road"],
+            "in_shadow": table_info[table_name]["in_shadow"],
+            "temp": temp,
+        }
+        csv_writer.writerow(row)
 
 
 # ---------------------------------
@@ -98,13 +172,25 @@ def main():
     model = YOLO(YOLO_MODEL)
     tracker = Sort()
 
+    # Link video file
     cap = cv2.VideoCapture(CAMERA_SOURCE)
     if not cap.isOpened():
         raise RuntimeError("Could not open camera")
 
+    # Potential edit location for bringing more data to be written
     table_names = list(TABLE_ZONES.keys())
     csv_file = open("occupancy_log.csv", "w", newline="", encoding="utf-8")
-    csv_writer = csv.DictWriter(csv_file, fieldnames=["timestamp"] + table_names)
+    csv_writer = csv.DictWriter(
+        csv_file,
+        fieldnames=[
+                    "timestamp",
+                    "table",
+                    "occupancy",
+                    "dist_from_road",
+                    "in_shadow",
+                    "temp"
+                   ]
+    )
     csv_writer.writeheader()
 
     last_log_time = 0
@@ -118,6 +204,7 @@ def main():
 
             results = model(frame, verbose=False)
 
+            # Process YOLO detections for each frame
             detections = []
             for result in results:
                 boxes = result.boxes
@@ -126,21 +213,24 @@ def main():
 
                 for box in boxes:
                     cls = int(box.cls[0].item())
-                    config = float(box.conf[0].item())
+                    conf = float(box.conf[0].item())
 
-                    if cls != PERSON_CLASS_ID or config < CONFIG_THRESHOLD:
+                    # Keep only person detections above confidence threshold
+                    if cls != PERSON_CLASS_ID or conf < CONF_THRESHOLD:
                         continue
 
                     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
-                    detections.append([x1, y1, x2, y2, config])
+                    detections.append([x1, y1, x2, y2, conf])
 
             if len(detections) == 0:
-                dets_np = np.empty((0,5))
+                dets_np = np.empty((0, 5))
             else:
                 dets_np = np.array(detections)
 
+            # Update tracker to assign consistent IDs across frames
             tracks = tracker.update(dets_np)
 
+            # Count number of people per table zone
             occupancy = defaultdict(int)
 
             for track in tracks:
@@ -180,7 +270,8 @@ def main():
             now = time.time()
             if now - last_log_time >= LOG_INTERVAL:
                 timestamp = time.strftime("%d-%m-%Y %H:%M:%S")
-                write_csv_row(csv_writer, timestamp, full_occupancy)
+                temp = get_cached_temperature(SITE_LAT, SITE_LON)
+                write_csv_row(csv_writer, timestamp, full_occupancy, TABLE_INFO, table_names, temp)
                 csv_file.flush()
                 last_log_time = now
 
@@ -198,6 +289,7 @@ def main():
                     (255, 255, 255),
                     2
                 )
+                y_offset += 30
             cv2.imshow("Table Occupancy Tracker", frame)
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q"):
@@ -210,25 +302,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

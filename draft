@@ -1,0 +1,72 @@
+Ethan 18/03/26
+ACT:
+	Mointer tables for activity.
+
+PURPOSE:
+	To see what table has most activity.
+
+ACTION:
+	Identify ideal table situation for future table placement.
+
+MAIN:
+	Observing how Cantabrians use public spaces.
+
+		ideal table placement.
+
+Design public spaces with how people like to use them.
+
+Data brief:
+	Gathering enviromental tracking time spent at public spot. Limited by equipment and broad stratification, personal identifiy and narrow scope for landscape.
+
+Data collection:
+	Video card, and laptop for storage. Proccess then dump data to minimise time. Coinvence sample. Limited by time and man power Pubudu pay us more and equipment.
+	-processing: Will load video through code get csv delete video.
+----------------------------------------------------------------------
+Marcel: 18/03/26
+Research objective: Determining how factors such as sunlight, temperature, and proximity to roads affect where people choose to sit in public spaces, to help inform their design including the placement of seats/tables to suit the needs of Cantabrians.
+
+We'll want to observe where people choose to sit in public spaces, and factors about those locations that may affect people's decisions. This can include data collected in the field, such as shade, and distance from the road, and auxilliary data such as weather conditions, collected from Metservice.
+
+To collect this data, we'll sample the behavior of people in a public space such as Cathedral Square. Though these needs will vary throughout the year with seasonal conditions, we'll sample a single day in Autumn, using a combination of computer vision to record when people sit and stand at various places in the square, and manual categorization of the conditions 
+
+Our initial approach to analysis is to attempt perform some exploratory data analysis before building a logistic model with the response variable being the proportion of time a seat or location is occupied, and the predictors being the other measurements and factors. Something like AIC for model selection might make sense, or it might end up being clear that only a few factors are influential.
+
+Project timeline:
+Mar 24 - Mar 30: Finish setting up the computer vision code and finalizing our plans for data collection
+[TODO]
+
+Ethical considerations include the recording of people in public, which can have some privacy concerns. To help mitigate this, we plan to process the video data promptly and keep the original video encrypted. [TODO: turns out we need to keep our original data according to the brief, so processing then deleting video files might not be okay. Maybe we could talk about obfuscating people's faces or something? It might be something to ask Pubudu.]
+----------------------------------------------------------------------
+Ethan: 19/03/26
+
+Research objective: 
+The objective of this project is to determine how environmental factors such as sunlight, temperature, and proximity to roads affect where people choose to sit in public spaces. The purpose is to help inform design choices of public spaces including the placement of seats/tables to suit the needs of Cantabrians. 
+
+Data Collection:
+We will observe seating behaviour in public spaces such as Cathedral Square using machine vision to record table occupancy at fixed time intervals of 20 seconds and noting factors about those locations that may affect people's decisions. This can include data collected in the field, such as shade, and distance from the road, and auxiliary data such as weather conditions, collected from Metservice. 
+
+To collect this data, we will sample the behaviour of people in a public spaces. Though these needs will vary throughout the year with seasonal conditions, we will sample a single day in Autumn, using a combination of computer vision and manual categorization of the conditions. 
+
+Analysis:
+Our initial approach will be to perform an exploratory data analysis to investigate patterns between seating behaviour and the predictors. Building a logistic model comes next where the response variable is a binary value repersenting occupied vs not occupied, and the predictors being spatial characteristics and envirmontal factors. To identify the most influential predictors we will use model selection techniques such as AIC. 
+
+Project timeline:
+Mar 24 - Mar 30: Finish setting up the computer vision code and finalizing our plans for data collection
+
+Apr ? - Apr ? Collect data
+
+Apr ? - Apr ? Clean and preprocess data
+
+Apr ? - Apr ? Explore data
+
+Apr ? - Apr ? Evaluate statistical model
+
+Apr ? - Apr ? Finalise report
+[TODO:]
+
+Ethical considerations include the recording of people in public, which raises potential privacy concerns. To help mitigate this, we plan to process the video data promptly and keep the original video encrypted.
+[TODO: turns out we need to keep our original data according to the brief, so processing then deleting video files might not be okay. Maybe we could talk about obfuscating people's faces or something? It might be something to ask Pubudu.]
+
+Limitations:
+The study is limited to a single day of data collection which will not allow us to capture variation across different days, seasons or events. Unobserved factors such as nearby events may influence seating behaviour. We will acknowledge these limitations when interpreting the results.
+
