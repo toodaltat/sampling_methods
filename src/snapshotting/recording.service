@@ -1,0 +1,16 @@
+# /etc/systemd/system/recorder.service
+[Unit]
+Description=Snapshot recorder
+After=data.mount
+Requires=data.mount
+
+[Service]
+ExecStart=/usr/bin/ffmpeg -f v4l2 -i /dev/video0 \
+  -vf fps=1/30 \ # 30 = snapshot interval, change if necessary
+  /data/recordings/%Y-%m-%dT%H:%M:%S.jpg
+Restart=on-failure
+RestartSec=10
+User=pi
+
+[Install]
+WantedBy=multi-user.target
