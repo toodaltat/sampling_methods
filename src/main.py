@@ -30,7 +30,7 @@ SITE_LAT = -43.5321
 SITE_LON = 172.6362
 
 # Define polygon coordinates for each table zone
-# These must be obtained manually from camera frame
+# These can be obtained manually with "point_finder.py"
 TABLE_ZONES = {
     "table_1": np.array([(126, 304), (416, 303), (411, 530), (104, 535)], dtype=np.int32),
 }
