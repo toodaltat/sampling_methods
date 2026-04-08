@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 load_dotenv()
 
-CAMERA_SOURCE = 0  # Needs to be changed to take video
+VIDEO_SOURCE = "video.mp4"  # Needs to be changed to take video
 YOLO_MODEL = "yolov8n.pt"
 CONF_THRESHOLD = 0.35
 LOG_INTERVAL = 1.0
@@ -173,9 +173,9 @@ def main():
     tracker = Sort()
 
     # Link video file
-    cap = cv2.VideoCapture(CAMERA_SOURCE)
+    cap = cv2.VideoCapture(VIDEO_SOURCE)
     if not cap.isOpened():
-        raise RuntimeError("Could not open camera")
+        raise RuntimeError(f"Could not open video file: {VIDEO_SOURCE}")
 
     # Potential edit location for bringing more data to be written
     table_names = list(TABLE_ZONES.keys())
@@ -199,7 +199,7 @@ def main():
         while True:
             ret, frame = cap.read()
             if not ret:
-                print("Failed to read frame. Exiting")
+                print("End of video. Exiting")
                 break
 
             results = model(frame, verbose=False)
