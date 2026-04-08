@@ -20,7 +20,7 @@ VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
 
 YOLO_MODEL = "yolov8n.pt"
 CONF_THRESHOLD = 0.35
-LOG_INTERVAL = 1.0
+LOG_INTERVAL = 20.0
 
 SITE_LAT = -43.5321
 SITE_LON = 172.6362
