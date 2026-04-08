@@ -1,6 +1,7 @@
 import csv
 import time
 from collections import defaultdict
+from typing import TypedDict
 
 import cv2
 import numpy as np
@@ -20,11 +21,6 @@ VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
 YOLO_MODEL = "yolov8n.pt"
 CONF_THRESHOLD = 0.35
 LOG_INTERVAL = 1.0
-
-weather_cache = {
-    "hour": None,
-    "temp_c": None
-}
 
 SITE_LAT = -43.5321
 SITE_LON = 172.6362
@@ -46,7 +42,18 @@ PERSON_CLASS_ID = 0
 # ---------------------------------
 
 
-def get_bottom_center(box):
+class WeatherCache(TypedDict):
+    hour: str | None
+    temp_c: float | None
+
+
+weather_cache: WeatherCache = {
+    "hour": None,
+    "temp_c": None
+}
+
+
+def get_bottom_center(box: list[float]) -> tuple[int, int]:
     """
     Return the bottom center point of a boundary box
     This is passed to csv file to indicate when person is truly in target zone
@@ -57,7 +64,7 @@ def get_bottom_center(box):
     return int((x1 + x2) / 2), int(y2)
 
 
-def point_in_zone(point, polygon):
+def point_in_zone(point: tuple[int, int], polygon: np.ndarray) -> bool:
     """
     Check if a point lies inside a polygon
     This allows us to know if someone is in target zone
@@ -68,7 +75,7 @@ def point_in_zone(point, polygon):
     return cv2.pointPolygonTest(polygon, point, False) >= 0
 
 
-def assign_table(box, zones):
+def assign_table(box: list[float], zones: dict[str, np.ndarray]) -> str | None:
     """
     Returns the table name that contains the person's bottom center point
     :param box:
@@ -82,7 +89,7 @@ def assign_table(box, zones):
     return None
 
 
-def draw_zones(frame, zones):
+def draw_zones(frame: np.ndarray, zones: dict[str, np.ndarray]) -> None:
     """
     Draws zones
     :param frame:
@@ -103,7 +110,7 @@ def draw_zones(frame, zones):
         )
 
 
-def get_temperature(lat, lon):
+def get_temperature(lat: float, lon: float) -> float:
     API_KEY = os.getenv("METOCEAN_API_KEY")
 
     url = "https://forecast-v2.metoceanapi.com/point/time"
@@ -132,7 +139,7 @@ def get_temperature(lat, lon):
     return round(temp_k - 273.15, 2)
 
 
-def get_cached_temperature(lat, lon):
+def get_cached_temperature(lat: float, lon: float) -> float | None:
     current_hour = datetime.now().strftime("%Y-%m-%d %H")
 
     if weather_cache["hour"] != current_hour:
@@ -142,7 +149,11 @@ def get_cached_temperature(lat, lon):
     return weather_cache["temp_c"]
 
 
-def write_csv_row(csv_writer, timestamp, occupancy, table_info, table_names, temp):
+def write_csv_row(csv_writer: csv.DictWriter,
+                  timestamp: str, occupancy: dict[str, int],
+                  table_info: dict[str, dict[str, float]],
+                  table_names: list[str], temp: float) -> None:
+
     for table_name in table_names:
         row = {
             "timestamp": timestamp,
