@@ -14,7 +14,9 @@ from datetime import datetime, timezone
 
 load_dotenv()
 
-VIDEO_SOURCE = "video.mp4"  # Needs to be changed to take video
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
+
 YOLO_MODEL = "yolov8n.pt"
 CONF_THRESHOLD = 0.35
 LOG_INTERVAL = 1.0
@@ -30,21 +32,11 @@ SITE_LON = 172.6362
 # Define polygon coordinates for each table zone
 # These must be obtained manually from camera frame
 TABLE_ZONES = {
-    "table_1": np.array([(50, 80), (50, 80), (50, 80), (50, 80)], dtype=np.int32),
-    "table_2": np.array([(50, 80), (50, 80), (50, 80), (50, 80)], dtype=np.int32),
-    "table_3": np.array([(50, 80), (50, 80), (50, 80), (50, 80)], dtype=np.int32),
-    "table_4": np.array([(50, 80), (50, 80), (50, 80), (50, 80)], dtype=np.int32),
-    "table_5": np.array([(50, 80), (50, 80), (50, 80), (50, 80)], dtype=np.int32),
-    "table_6": np.array([(50, 80), (50, 80), (50, 80), (50, 80)], dtype=np.int32),
+    "table_1": np.array([(126, 304), (416, 303), (411, 530), (104, 535)], dtype=np.int32),
 }
 
 TABLE_INFO = {
-    "table_1": {"dist_from_road": 12.4, "in_shadow": 1},
-    "table_2": {"dist_from_road": 5.8, "in_shadow": 0},
-    "table_3": {"dist_from_road": 9.1, "in_shadow": 1},
-    "table_4": {"dist_from_road": 7.3, "in_shadow": 0},
-    "table_5": {"dist_from_road": 15.2, "in_shadow": 1},
-    "table_6": {"dist_from_road": 10.0, "in_shadow": 0},
+    "table_1": {"dist_from_road": 12.4, "in_shadow": 0},
 }
 
 PERSON_CLASS_ID = 0
