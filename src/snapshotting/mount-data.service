@@ -4,7 +4,7 @@ After=local-fs.target usb-storage.service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/mount-data.sh
+ExecStart=/usr/local/bin/mount_data.sh
 RemainAfterExit=yes
 
 [Install]

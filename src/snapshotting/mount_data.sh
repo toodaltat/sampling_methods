@@ -1,5 +1,6 @@
-KEY_UUID="insert_key_uuid"
-DATA_UUID="insert_data_uuid"
+#!/usr/bin/bash
+KEY_UUID="eb351f27-e077-4c89-8786-5d8f55fc9553"
+DATA_UUID="a5e8e457-ffe3-48f7-ae33-ebfae756e682"
 
 KEY_DEV=/dev/disk/by-uuid/$KEY_UUID
 DATA_DEV=/dev/disk/by-uuid/$DATA_UUID
