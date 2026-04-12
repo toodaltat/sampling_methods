@@ -119,6 +119,8 @@ def get_temperature(lat: float, lon: float) -> float:
         "accept": "application/json"
     }
 
+    # chosen_local = datetime(2026, 4, 8, 13, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
+    # chosen_utc = chosen_local.astimezone(timezone.utc)
     now_utc = datetime.now(timezone.utc)
     from_time = now_utc.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
 
