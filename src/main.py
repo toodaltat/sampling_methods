@@ -1,5 +1,5 @@
 import csv
-import time
+
 from collections import defaultdict
 from typing import TypedDict
 
@@ -11,7 +11,8 @@ from sort import Sort
 import os
 import requests
 from dotenv import load_dotenv
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 load_dotenv()
 
@@ -20,10 +21,13 @@ VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
 
 YOLO_MODEL = "yolov8n.pt"
 CONF_THRESHOLD = 0.35
-LOG_INTERVAL = 20.0
+LOG_INTERVAL = 10.0
 
 SITE_LAT = -43.5321
 SITE_LON = 172.6362
+
+# Year/Month/Day/Hour/Min
+RECORDED_START_TIME = datetime(2026, 4, 13, 6, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
 
 # Define polygon coordinates for each table zone
 # These can be obtained manually with "point_finder.py"
@@ -36,6 +40,7 @@ TABLE_INFO = {
 }
 
 PERSON_CLASS_ID = 0
+
 
 # ---------------------------------
 # HELPERS
@@ -51,6 +56,10 @@ weather_cache: WeatherCache = {
     "hour": None,
     "temp_c": None
 }
+
+
+def datetime_to_site_time(dt: datetime) -> list[int]:
+    return [dt.year, dt.month, dt.day, dt.hour, dt.minute]
 
 
 def get_bottom_center(box: list[float]) -> tuple[int, int]:
@@ -110,7 +119,24 @@ def draw_zones(frame: np.ndarray, zones: dict[str, np.ndarray]) -> None:
         )
 
 
-def get_temperature(lat: float, lon: float) -> float:
+def build_weather_time(year, month, day, hour, minute=0):
+    """
+    Gives a starting time for weather request to start polling from
+    :return:
+    """
+    chosen_local = datetime(year, month, day, hour, minute, tzinfo=ZoneInfo("Pacific/Auckland"))
+    chosen_utc = chosen_local.astimezone(timezone.utc)
+    return chosen_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def get_temperature(lat: float, lon: float, site_time: list[int]) -> float:
+    """
+    API call each hour to get temp
+    :param lat:
+    :param lon:
+    :param site_time:
+    :return:
+    """
     API_KEY = os.getenv("METOCEAN_API_KEY")
 
     url = "https://forecast-v2.metoceanapi.com/point/time"
@@ -119,10 +145,7 @@ def get_temperature(lat: float, lon: float) -> float:
         "accept": "application/json"
     }
 
-    # chosen_local = datetime(2026, 4, 8, 13, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
-    # chosen_utc = chosen_local.astimezone(timezone.utc)
-    now_utc = datetime.now(timezone.utc)
-    from_time = now_utc.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+    from_time = build_weather_time(*site_time)
 
     params = {
         "lat": lat,
@@ -141,12 +164,16 @@ def get_temperature(lat: float, lon: float) -> float:
     return round(temp_k - 273.15, 2)
 
 
-def get_cached_temperature(lat: float, lon: float) -> float | None:
-    current_hour = datetime.now().strftime("%Y-%m-%d %H")
+def get_cached_temperature(lat: float, lon: float, site_time: list[int]) -> float | None:
+    """
+    Caches data for easy on pipeline
+    :return:
+    """
+    requested_hour = build_weather_time(*site_time)
 
-    if weather_cache["hour"] != current_hour:
-        weather_cache["temp_c"] = get_temperature(lat, lon)
-        weather_cache["hour"] = current_hour
+    if weather_cache["hour"] != requested_hour:
+        weather_cache["temp_c"] = get_temperature(lat, lon, site_time)
+        weather_cache["hour"] = requested_hour
 
     return weather_cache["temp_c"]
 
@@ -155,7 +182,6 @@ def write_csv_row(csv_writer: csv.DictWriter,
                   timestamp: str, occupancy: dict[str, int],
                   table_info: dict[str, dict[str, float]],
                   table_names: list[str], temp: float) -> None:
-
     for table_name in table_names:
         row = {
             "timestamp": timestamp,
@@ -177,10 +203,13 @@ def main():
     model = YOLO(YOLO_MODEL)
     tracker = Sort()
 
-    # Link video file
     cap = cv2.VideoCapture(VIDEO_SOURCE)
     if not cap.isOpened():
         raise RuntimeError(f"Could not open video file: {VIDEO_SOURCE}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if fps <= 0:
+        raise RuntimeError("Could not determine video FPS")
 
     # Potential edit location for bringing more data to be written
     table_names = list(TABLE_ZONES.keys())
@@ -188,17 +217,17 @@ def main():
     csv_writer = csv.DictWriter(
         csv_file,
         fieldnames=[
-                    "timestamp",
-                    "table",
-                    "occupancy",
-                    "dist_from_road",
-                    "in_shadow",
-                    "temp"
-                   ]
+            "timestamp",
+            "table",
+            "occupancy",
+            "dist_from_road",
+            "in_shadow",
+            "temp"
+        ]
     )
     csv_writer.writeheader()
 
-    last_log_time = 0
+    last_logged_video_second = -LOG_INTERVAL
 
     try:
         while True:
@@ -207,6 +236,10 @@ def main():
                 print("End of video. Exiting")
                 break
 
+            frame_index = cap.get(cv2.CAP_PROP_POS_FRAMES)
+            video_seconds = frame_index / fps
+            current_video_second = int(video_seconds)
+            current_dt = RECORDED_START_TIME + timedelta(seconds=video_seconds)
             results = model(frame, verbose=False)
 
             # Process YOLO detections for each frame
@@ -272,13 +305,13 @@ def main():
                 cv2.circle(frame, (bx, by), 4, (0, 0, 255), -1)
             full_occupancy = {name: occupancy.get(name, 0) for name in table_names}
 
-            now = time.time()
-            if now - last_log_time >= LOG_INTERVAL:
-                timestamp = time.strftime("%d-%m-%Y %H:%M:%S")
-                temp = get_cached_temperature(SITE_LAT, SITE_LON)
+            if current_video_second - last_logged_video_second >= LOG_INTERVAL:
+                timestamp = current_dt.strftime("%d-%m-%Y %H:%M:%S")
+                current_site_time = datetime_to_site_time(current_dt)
+                temp = get_cached_temperature(SITE_LAT, SITE_LON, current_site_time)
                 write_csv_row(csv_writer, timestamp, full_occupancy, TABLE_INFO, table_names, temp)
                 csv_file.flush()
-                last_log_time = now
+                last_logged_video_second = current_video_second
 
             draw_zones(frame, TABLE_ZONES)
 
@@ -295,10 +328,10 @@ def main():
                     2
                 )
                 y_offset += 30
-            cv2.imshow("Table Occupancy Tracker", frame)
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord("q"):
-                break
+            # cv2.imshow("Table Occupancy Tracker", frame)
+            # key = cv2.waitKey(1) & 0xFF
+            # if key == ord("q"):
+            #     break
     finally:
         cap.release()
         cv2.destroyAllWindows()
