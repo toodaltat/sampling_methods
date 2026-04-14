@@ -1,6 +1,10 @@
 import cv2
+import os
 
 points = []
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
 
 def mouse_callback(event, x, y, flags, param):
     global points, frame_display
@@ -13,6 +17,7 @@ def mouse_callback(event, x, y, flags, param):
         if points:
             removed = points.pop()
             print(f"Removed point: {removed}")
+
 
 def draw_points(frame, points):
     display = frame.copy()
@@ -31,11 +36,11 @@ def draw_points(frame, points):
 
     return display
 
-video_path = "video.mp4"
-cap = cv2.VideoCapture(video_path)
+# video_path = VIDEO_SOURCE
+cap = cv2.VideoCapture(VIDEO_SOURCE)
 
 if not cap.isOpened():
-    raise RuntimeError(f"Could not open video: {video_path}")
+    raise RuntimeError(f"Could not open video: {VIDEO_SOURCE}")
 
 ret, frame = cap.read()
 cap.release()
