@@ -21,7 +21,7 @@ VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
 
 YOLO_MODEL = "yolov8n.pt"
 CONF_THRESHOLD = 0.35
-LOG_INTERVAL = 0.25
+LOGGED_SECONDS = 0.25  # 10.0
 
 SITE_LAT = -43.5321
 SITE_LON = 172.6362
@@ -32,17 +32,11 @@ RECORDED_START_TIME = datetime(2026, 4, 14, 10, 0, 0, tzinfo=ZoneInfo("Pacific/A
 # Define polygon coordinates for each table zone
 # These can be obtained manually with "point_finder.py"
 TABLE_ZONES = {
-    "table_1": np.array([(1179, 403), (1616, 430), (1567, 619), (1139, 545)], dtype=np.int32),
-    "table_2": np.array([(807, 414), (997, 423), (945, 528), (784, 497)], dtype=np.int32),
-    "table_3": np.array([(636, 407), (774, 421), (740, 496), (614, 469)], dtype=np.int32),
-    "table_4": np.array([(509, 404), (610, 415), (581, 468), (498, 460)], dtype=np.int32),
+    "table_1": np.array([(696, 717), (1032, 724), (1033, 883), (701, 902)], dtype=np.int32),
 }
 
 TABLE_INFO = {
     "table_1": {"dist_from_road": 10.0, "in_shadow": 0},
-    "table_2": {"dist_from_road": 11.0, "in_shadow": 1},
-    "table_3": {"dist_from_road": 13.0, "in_shadow": 0},
-    "table_4": {"dist_from_road": 14.0, "in_shadow": 1},
 }
 
 PERSON_CLASS_ID = 0
@@ -233,7 +227,7 @@ def main():
     )
     csv_writer.writeheader()
 
-    last_logged_video_second = -LOG_INTERVAL
+    last_logged_video_second = -LOGGED_SECONDS
 
     try:
         while True:
@@ -311,9 +305,7 @@ def main():
                 cv2.circle(frame, (bx, by), 4, (0, 0, 255), -1)
             full_occupancy = {name: occupancy.get(name, 0) for name in table_names}
 
-
-            #  No need for video check just call
-            if current_video_second - last_logged_video_second >= LOG_INTERVAL:
+            if current_video_second - last_logged_video_second >= LOGGED_SECONDS:
                 timestamp = current_dt.strftime("%d-%m-%Y %H:%M:%S")
                 current_site_time = datetime_to_site_time(current_dt)
                 temp = get_cached_temperature(SITE_LAT, SITE_LON, current_site_time)
