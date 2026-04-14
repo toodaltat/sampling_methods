@@ -1,5 +1,4 @@
 import csv
-
 from collections import defaultdict
 from typing import TypedDict
 
@@ -14,6 +13,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 
+
 load_dotenv()
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -21,22 +21,28 @@ VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
 
 YOLO_MODEL = "yolov8n.pt"
 CONF_THRESHOLD = 0.35
-LOG_INTERVAL = 10.0
+LOG_INTERVAL = 0.25
 
 SITE_LAT = -43.5321
 SITE_LON = 172.6362
 
 # Year/Month/Day/Hour/Min
-RECORDED_START_TIME = datetime(2026, 4, 13, 6, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
+RECORDED_START_TIME = datetime(2026, 4, 14, 10, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
 
 # Define polygon coordinates for each table zone
 # These can be obtained manually with "point_finder.py"
 TABLE_ZONES = {
-    "table_1": np.array([(126, 304), (416, 303), (411, 530), (104, 535)], dtype=np.int32),
+    "table_1": np.array([(1179, 403), (1616, 430), (1567, 619), (1139, 545)], dtype=np.int32),
+    "table_2": np.array([(807, 414), (997, 423), (945, 528), (784, 497)], dtype=np.int32),
+    "table_3": np.array([(636, 407), (774, 421), (740, 496), (614, 469)], dtype=np.int32),
+    "table_4": np.array([(509, 404), (610, 415), (581, 468), (498, 460)], dtype=np.int32),
 }
 
 TABLE_INFO = {
-    "table_1": {"dist_from_road": 12.4, "in_shadow": 0},
+    "table_1": {"dist_from_road": 10.0, "in_shadow": 0},
+    "table_2": {"dist_from_road": 11.0, "in_shadow": 1},
+    "table_3": {"dist_from_road": 13.0, "in_shadow": 0},
+    "table_4": {"dist_from_road": 14.0, "in_shadow": 1},
 }
 
 PERSON_CLASS_ID = 0
@@ -211,7 +217,7 @@ def main():
     if fps <= 0:
         raise RuntimeError("Could not determine video FPS")
 
-    # Potential edit location for bringing more data to be written
+    # Location for bringing more data to be written
     table_names = list(TABLE_ZONES.keys())
     csv_file = open("occupancy_log.csv", "w", newline="", encoding="utf-8")
     csv_writer = csv.DictWriter(
@@ -305,6 +311,8 @@ def main():
                 cv2.circle(frame, (bx, by), 4, (0, 0, 255), -1)
             full_occupancy = {name: occupancy.get(name, 0) for name in table_names}
 
+
+            #  No need for video check just call
             if current_video_second - last_logged_video_second >= LOG_INTERVAL:
                 timestamp = current_dt.strftime("%d-%m-%Y %H:%M:%S")
                 current_site_time = datetime_to_site_time(current_dt)
@@ -328,10 +336,10 @@ def main():
                     2
                 )
                 y_offset += 30
-            # cv2.imshow("Table Occupancy Tracker", frame)
-            # key = cv2.waitKey(1) & 0xFF
-            # if key == ord("q"):
-            #     break
+            cv2.imshow("Table Occupancy Tracker", frame)
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
+                break
     finally:
         cap.release()
         cv2.destroyAllWindows()
