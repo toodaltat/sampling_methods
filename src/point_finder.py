@@ -6,6 +6,9 @@ points = []
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
 
+START_FRAME = 150
+
+
 def mouse_callback(event, x, y, flags, param):
     global points, frame_display
 
@@ -36,11 +39,13 @@ def draw_points(frame, points):
 
     return display
 
-# video_path = VIDEO_SOURCE
+
 cap = cv2.VideoCapture(VIDEO_SOURCE)
 
 if not cap.isOpened():
     raise RuntimeError(f"Could not open video: {VIDEO_SOURCE}")
+
+cap.set(cv2.CAP_PROP_POS_FRAMES, START_FRAME)
 
 ret, frame = cap.read()
 cap.release()
