@@ -18,10 +18,11 @@ load_dotenv()
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
+CSV_OUTPUT = os.path.join(BASE_DIR, "output", "occupancy_log.csv")
 
 YOLO_MODEL = "yolov8n.pt"
 CONF_THRESHOLD = 0.35
-LOGGED_SECONDS = 0.25  # 10.0
+LOGGED_SECONDS = 1.0  # 10.0
 
 SITE_LAT = -43.5321
 SITE_LON = 172.6362
@@ -29,10 +30,9 @@ SITE_LON = 172.6362
 # Year/Month/Day/Hour/Min
 RECORDED_START_TIME = datetime(2026, 4, 14, 10, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
 
-# Define polygon coordinates for each table zone
-# These can be obtained manually with "point_finder.py"
+# Use "point_finder.py" to set zones
 TABLE_ZONES = {
-    "table_1": np.array([(696, 717), (1032, 724), (1033, 883), (701, 902)], dtype=np.int32),
+    "table_1": np.array([(687, 701), (1044, 699), (1058, 932), (682, 935)], dtype=np.int32),
 }
 
 TABLE_INFO = {
@@ -129,7 +129,7 @@ def build_weather_time(year, month, day, hour, minute=0):
     return chosen_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def get_temperature(lat: float, lon: float, site_time: list[int]) -> float:
+def get_temperature(lat, lon, site_time) -> float:
     """
     API call each hour to get temp
     :param lat:
@@ -164,7 +164,7 @@ def get_temperature(lat: float, lon: float, site_time: list[int]) -> float:
     return round(temp_k - 273.15, 2)
 
 
-def get_cached_temperature(lat: float, lon: float, site_time: list[int]) -> float | None:
+def get_cached_temperature(lat, lon, site_time) -> float | None:
     """
     Caches data for easy on pipeline
     :return:
@@ -178,10 +178,8 @@ def get_cached_temperature(lat: float, lon: float, site_time: list[int]) -> floa
     return weather_cache["temp_c"]
 
 
-def write_csv_row(csv_writer: csv.DictWriter,
-                  timestamp: str, occupancy: dict[str, int],
-                  table_info: dict[str, dict[str, float]],
-                  table_names: list[str], temp: float) -> None:
+def write_csv_row(csv_writer, timestamp, occupancy,
+                  table_info, table_names, temp) -> None:
     for table_name in table_names:
         row = {
             "timestamp": timestamp,
@@ -213,7 +211,7 @@ def main():
 
     # Location for bringing more data to be written
     table_names = list(TABLE_ZONES.keys())
-    csv_file = open("occupancy_log.csv", "w", newline="", encoding="utf-8")
+    csv_file = open(CSV_OUTPUT, "w", newline="", encoding="utf-8")
     csv_writer = csv.DictWriter(
         csv_file,
         fieldnames=[
@@ -236,9 +234,8 @@ def main():
                 print("End of video. Exiting")
                 break
 
-            frame_index = cap.get(cv2.CAP_PROP_POS_FRAMES)
+            frame_index = cap.get(cv2.CAP_PROP_POS_FRAMES) - 1
             video_seconds = frame_index / fps
-            current_video_second = int(video_seconds)
             current_dt = RECORDED_START_TIME + timedelta(seconds=video_seconds)
             results = model(frame, verbose=False)
 
@@ -305,13 +302,13 @@ def main():
                 cv2.circle(frame, (bx, by), 4, (0, 0, 255), -1)
             full_occupancy = {name: occupancy.get(name, 0) for name in table_names}
 
-            if current_video_second - last_logged_video_second >= LOGGED_SECONDS:
-                timestamp = current_dt.strftime("%d-%m-%Y %H:%M:%S")
+            if video_seconds - last_logged_video_second >= LOGGED_SECONDS:
+                timestamp = current_dt.strftime("%d-%m-%Y %H:%M:%S.%f")[:-3]
                 current_site_time = datetime_to_site_time(current_dt)
                 temp = get_cached_temperature(SITE_LAT, SITE_LON, current_site_time)
                 write_csv_row(csv_writer, timestamp, full_occupancy, TABLE_INFO, table_names, temp)
                 csv_file.flush()
-                last_logged_video_second = current_video_second
+                last_logged_video_second = video_seconds
 
             draw_zones(frame, TABLE_ZONES)
 
@@ -328,10 +325,10 @@ def main():
                     2
                 )
                 y_offset += 30
-            cv2.imshow("Table Occupancy Tracker", frame)
-            key = cv2.waitKey(1) & 0xFF
-            if key == ord("q"):
-                break
+            # cv2.imshow("Table Occupancy Tracker", frame)
+            # key = cv2.waitKey(1) & 0xFF
+            # if key == ord("q"):
+            #     break
     finally:
         cap.release()
         cv2.destroyAllWindows()
