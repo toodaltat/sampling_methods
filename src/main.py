@@ -16,25 +16,33 @@ from zoneinfo import ZoneInfo
 
 load_dotenv()
 
+# ---------------------------------
+# CONSTANTS
+# ---------------------------------
+
+# Directory paths
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
 CSV_OUTPUT = os.path.join(BASE_DIR, "output", "occupancy_log.csv")
 
+# Model and thresholds
 YOLO_MODEL = "yolov8n.pt"
-CONF_THRESHOLD = 0.35
-LOGGED_SECONDS = 1.0  # 10.0
+CONF_THRESHOLD = 0.35  # Detections > 35% confidence to be logged
+LOGGED_SECONDS = 1.0  # 1/fps is the lowest recommend
 
+# Christchurch
 SITE_LAT = -43.5321
 SITE_LON = 172.6362
 
 # Year/Month/Day/Hour/Min
-RECORDED_START_TIME = datetime(2026, 4, 14, 10, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
+RECORDED_START_TIME = datetime(2026, 4, 16, 9, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
 
 # Use "point_finder.py" to set zones
 TABLE_ZONES = {
     "table_1": np.array([(687, 701), (1044, 699), (1058, 932), (682, 935)], dtype=np.int32),
 }
 
+# Manual input required
 TABLE_INFO = {
     "table_1": {"dist_from_road": 10.0, "in_shadow": 0},
 }
@@ -62,7 +70,7 @@ def datetime_to_site_time(dt: datetime) -> list[int]:
     return [dt.year, dt.month, dt.day, dt.hour, dt.minute]
 
 
-def get_bottom_center(box: list[float]) -> tuple[int, int]:
+def get_bottom_center(box) -> tuple[int, int]:
     """
     Return the bottom center point of a boundary box
     This is passed to csv file to indicate when person is truly in target zone
@@ -73,7 +81,7 @@ def get_bottom_center(box: list[float]) -> tuple[int, int]:
     return int((x1 + x2) / 2), int(y2)
 
 
-def point_in_zone(point: tuple[int, int], polygon: np.ndarray) -> bool:
+def point_in_zone(point, polygon) -> bool:
     """
     Check if a point lies inside a polygon
     This allows us to know if someone is in target zone
@@ -84,7 +92,7 @@ def point_in_zone(point: tuple[int, int], polygon: np.ndarray) -> bool:
     return cv2.pointPolygonTest(polygon, point, False) >= 0
 
 
-def assign_table(box: list[float], zones: dict[str, np.ndarray]) -> str | None:
+def assign_table(box, zones) -> str | None:
     """
     Returns the table name that contains the person's bottom center point
     :param box:
@@ -98,25 +106,25 @@ def assign_table(box: list[float], zones: dict[str, np.ndarray]) -> str | None:
     return None
 
 
-def draw_zones(frame: np.ndarray, zones: dict[str, np.ndarray]) -> None:
-    """
-    Draws zones
-    :param frame:
-    :param zones:
-    :return:
-    """
-    for table_name, polygon in zones.items():
-        cv2.polylines(frame, [polygon], isClosed=True, color=(255, 0, 0), thickness=2)
-        x, y = polygon[0]
-        cv2.putText(
-            frame,
-            table_name,
-            (x, y - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            (255, 0, 0),
-            2,
-        )
+# def draw_zones(frame, zones) -> None:
+#     """
+#     Draws zones for viewing video as script process it
+#     :param frame:
+#     :param zones:
+#     :return:
+#     """
+#     for table_name, polygon in zones.items():
+#         cv2.polylines(frame, [polygon], isClosed=True, color=(255, 0, 0), thickness=2)
+#         x, y = polygon[0]
+#         cv2.putText(
+#             frame,
+#             table_name,
+#             (x, y - 10),
+#             cv2.FONT_HERSHEY_SIMPLEX,
+#             0.7,
+#             (255, 0, 0),
+#             2,
+#         )
 
 
 def build_weather_time(year, month, day, hour, minute=0):
@@ -201,6 +209,7 @@ def main():
     model = YOLO(YOLO_MODEL)
     tracker = Sort()
 
+    # Opens video source and retrieves video fps
     cap = cv2.VideoCapture(VIDEO_SOURCE)
     if not cap.isOpened():
         raise RuntimeError(f"Could not open video file: {VIDEO_SOURCE}")
@@ -209,8 +218,9 @@ def main():
     if fps <= 0:
         raise RuntimeError("Could not determine video FPS")
 
-    # Location for bringing more data to be written
+    # Sets csv to be written
     table_names = list(TABLE_ZONES.keys())
+    os.makedirs(os.path.dirname(CSV_OUTPUT), exist_ok=True)
     csv_file = open(CSV_OUTPUT, "w", newline="", encoding="utf-8")
     csv_writer = csv.DictWriter(
         csv_file,
@@ -225,7 +235,7 @@ def main():
     )
     csv_writer.writeheader()
 
-    last_logged_video_second = -LOGGED_SECONDS
+    last_logged_video_time = -LOGGED_SECONDS
 
     try:
         while True:
@@ -269,69 +279,78 @@ def main():
             occupancy = defaultdict(int)
 
             for track in tracks:
-                x1, y1, x2, y2, track_id = track
+                x1, y1, x2, y2, _ = track
                 box = [x1, y1, x2, y2]
 
                 table_name = assign_table(box, TABLE_ZONES)
                 if table_name is not None:
                     occupancy[table_name] += 1
 
-                cv2.rectangle(
-                    frame,
-                    (int(x1), int(y1)),
-                    (int(x2), int(y2)),
-                    (0, 255, 0),
-                    2
-                )
-
-                label = f"ID {int(track_id)}"
-                if table_name:
-                    label += f" -> {table_name}"
-
-                cv2.putText(
-                    frame,
-                    label,
-                    (int(x1), int(y1) - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    (0, 255, 0),
-                    2
-                )
-
-                bx, by = get_bottom_center(box)
-                cv2.circle(frame, (bx, by), 4, (0, 0, 255), -1)
+                #########################################################
+                # WARNING: comment code is for viewing video while script
+                #          runs
+                #########################################################
+                # cv2.rectangle(
+                #     frame,
+                #     (int(x1), int(y1)),
+                #     (int(x2), int(y2)),
+                #     (0, 255, 0),
+                #     2
+                # )
+                #
+                # label = f"ID {int(track_id)}"
+                # if table_name:
+                #     label += f" -> {table_name}"
+                #
+                # cv2.putText(
+                #     frame,
+                #     label,
+                #     (int(x1), int(y1) - 10),
+                #     cv2.FONT_HERSHEY_SIMPLEX,
+                #     0.5,
+                #     (0, 255, 0),
+                #     2
+                # )
+                #
+                # bx, by = get_bottom_center(box)
+                # cv2.circle(frame, (bx, by), 4, (0, 0, 255), -1)
             full_occupancy = {name: occupancy.get(name, 0) for name in table_names}
 
-            if video_seconds - last_logged_video_second >= LOGGED_SECONDS:
+            # Writes a CSV row when enough video time has elapsed since the last log
+            if video_seconds - last_logged_video_time >= LOGGED_SECONDS:
                 timestamp = current_dt.strftime("%d-%m-%Y %H:%M:%S.%f")[:-3]
                 current_site_time = datetime_to_site_time(current_dt)
                 temp = get_cached_temperature(SITE_LAT, SITE_LON, current_site_time)
                 write_csv_row(csv_writer, timestamp, full_occupancy, TABLE_INFO, table_names, temp)
                 csv_file.flush()
-                last_logged_video_second = video_seconds
+                last_logged_video_time = video_seconds
 
-            draw_zones(frame, TABLE_ZONES)
+            #########################################################
+            # WARNING: comment code is for viewing video while script
+            #          runs
+            #########################################################
+            # draw_zones(frame, TABLE_ZONES)
 
-            y_offset = 30
-            for table_name in table_names:
-                text = f"{table_name}: {full_occupancy[table_name]}"
-                cv2.putText(
-                    frame,
-                    text,
-                    (20, y_offset),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (255, 255, 255),
-                    2
-                )
-                y_offset += 30
+            # y_offset = 30
+            # for table_name in table_names:
+            #     text = f"{table_name}: {full_occupancy[table_name]}"
+            #     cv2.putText(
+            #         frame,
+            #         text,
+            #         (20, y_offset),
+            #         cv2.FONT_HERSHEY_SIMPLEX,
+            #         0.7,
+            #         (255, 255, 255),
+            #         2
+            #     )
+            #     y_offset += 30
             # cv2.imshow("Table Occupancy Tracker", frame)
             # key = cv2.waitKey(1) & 0xFF
             # if key == ord("q"):
             #     break
     finally:
         cap.release()
-        cv2.destroyAllWindows()
+        # cv2.destroyAllWindows()  # This too!
         csv_file.close()
 
 
