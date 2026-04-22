@@ -35,16 +35,20 @@ SITE_LAT = -43.5321
 SITE_LON = 172.6362
 
 # Year/Month/Day/Hour/Min
-RECORDED_START_TIME = datetime(2026, 4, 16, 9, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
+RECORDED_START_TIME = datetime(2026, 4, 23, 9, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
 
 # Use "point_finder.py" to set zones
 TABLE_ZONES = {
-    "table_1": np.array([(687, 701), (1044, 699), (1058, 932), (682, 935)], dtype=np.int32),
+    "table_1": np.array([(1216, 444), (1626, 493), (1599, 628), (1191, 545)], dtype=np.int32),
+    "table_2": np.array([(868, 426), (1073, 440), (1053, 529), (855, 496)], dtype=np.int32),
+    "table_3": np.array([(706, 426), (791, 432), (776, 487), (694, 472)], dtype=np.int32),
 }
 
 # Manual input required
 TABLE_INFO = {
     "table_1": {"dist_from_road": 10.0, "in_shadow": 0},
+    "table_2": {"dist_from_road": 10.0, "in_shadow": 1},
+    "table_3": {"dist_from_road": 10.0, "in_shadow": 1},
 }
 
 PERSON_CLASS_ID = 0
@@ -104,27 +108,6 @@ def assign_table(box, zones) -> str | None:
         if point_in_zone(pt, polygon):
             return table_name
     return None
-
-
-# def draw_zones(frame, zones) -> None:
-#     """
-#     Draws zones for viewing video as script process it
-#     :param frame:
-#     :param zones:
-#     :return:
-#     """
-#     for table_name, polygon in zones.items():
-#         cv2.polylines(frame, [polygon], isClosed=True, color=(255, 0, 0), thickness=2)
-#         x, y = polygon[0]
-#         cv2.putText(
-#             frame,
-#             table_name,
-#             (x, y - 10),
-#             cv2.FONT_HERSHEY_SIMPLEX,
-#             0.7,
-#             (255, 0, 0),
-#             2,
-#         )
 
 
 def build_weather_time(year, month, day, hour, minute=0):
@@ -286,34 +269,6 @@ def main():
                 if table_name is not None:
                     occupancy[table_name] += 1
 
-                #########################################################
-                # WARNING: comment code is for viewing video while script
-                #          runs
-                #########################################################
-                # cv2.rectangle(
-                #     frame,
-                #     (int(x1), int(y1)),
-                #     (int(x2), int(y2)),
-                #     (0, 255, 0),
-                #     2
-                # )
-                #
-                # label = f"ID {int(track_id)}"
-                # if table_name:
-                #     label += f" -> {table_name}"
-                #
-                # cv2.putText(
-                #     frame,
-                #     label,
-                #     (int(x1), int(y1) - 10),
-                #     cv2.FONT_HERSHEY_SIMPLEX,
-                #     0.5,
-                #     (0, 255, 0),
-                #     2
-                # )
-                #
-                # bx, by = get_bottom_center(box)
-                # cv2.circle(frame, (bx, by), 4, (0, 0, 255), -1)
             full_occupancy = {name: occupancy.get(name, 0) for name in table_names}
 
             # Writes a CSV row when enough video time has elapsed since the last log
@@ -325,32 +280,8 @@ def main():
                 csv_file.flush()
                 last_logged_video_time = video_seconds
 
-            #########################################################
-            # WARNING: comment code is for viewing video while script
-            #          runs
-            #########################################################
-            # draw_zones(frame, TABLE_ZONES)
-
-            # y_offset = 30
-            # for table_name in table_names:
-            #     text = f"{table_name}: {full_occupancy[table_name]}"
-            #     cv2.putText(
-            #         frame,
-            #         text,
-            #         (20, y_offset),
-            #         cv2.FONT_HERSHEY_SIMPLEX,
-            #         0.7,
-            #         (255, 255, 255),
-            #         2
-            #     )
-            #     y_offset += 30
-            # cv2.imshow("Table Occupancy Tracker", frame)
-            # key = cv2.waitKey(1) & 0xFF
-            # if key == ord("q"):
-            #     break
     finally:
         cap.release()
-        # cv2.destroyAllWindows()  # This too!
         csv_file.close()
 
 
