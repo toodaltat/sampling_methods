@@ -28,20 +28,20 @@ CSV_OUTPUT = os.path.join(BASE_DIR, "output", "occupancy_log.csv")
 # Model and thresholds
 YOLO_MODEL = "yolov8n.pt"
 CONF_THRESHOLD = 0.35  # Detections > 35% confidence to be logged
-LOGGED_SECONDS = 1.0  # 1/fps is the lowest recommend
+LOGGED_SECONDS = 30.0  # 1/fps is the lowest recommend
 
 # Christchurch
 SITE_LAT = -43.5321
 SITE_LON = 172.6362
 
 # Year/Month/Day/Hour/Min
-RECORDED_START_TIME = datetime(2026, 4, 23, 9, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
+RECORDED_START_TIME = datetime(2026, 4, 23, 10, 2, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
 
 # Use "point_finder.py" to set zones
 TABLE_ZONES = {
-    "table_1": np.array([(1216, 444), (1626, 493), (1599, 628), (1191, 545)], dtype=np.int32),
-    "table_2": np.array([(868, 426), (1073, 440), (1053, 529), (855, 496)], dtype=np.int32),
-    "table_3": np.array([(706, 426), (791, 432), (776, 487), (694, 472)], dtype=np.int32),
+    "table_1": np.array([(1261, 434), (1620, 457), (1598, 635), (1200, 551)], dtype=np.int32),
+    "table_2": np.array([(877, 419), (1073, 427), (1047, 529), (851, 493)], dtype=np.int32),
+    "table_3": np.array([(695, 415), (822, 414), (805, 487), (684, 474)], dtype=np.int32),
 }
 
 # Manual input required

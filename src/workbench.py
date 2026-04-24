@@ -28,7 +28,7 @@ CSV_OUTPUT = os.path.join(BASE_DIR, "output", "occupancy_log.csv")
 # Model and thresholds
 YOLO_MODEL = "yolov8n.pt"
 CONF_THRESHOLD = 0.35  # Detections > 35% confidence to be logged
-LOGGED_SECONDS = 1.0  # 1/fps is the lowest recommend
+LOGGED_SECONDS = 30.0  # 1/fps is the lowest recommend
 
 # Christchurch
 SITE_LAT = -43.5321
