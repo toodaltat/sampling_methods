@@ -31,10 +31,10 @@ sampling_methods/
 ├── output/
 │   └── occupancy_log.csv
 ├── src/
-│   ├── main.py
-│   ├── sort.py
-│   ├── point_finder.py
-│   └── workbench.py
+│   ├── 00_point_finder.py
+│   ├── 01_sort.py
+│   ├── 02_workbench.py
+│   └── 03_main.py
 ├── .env
 ├── requirements.txt
 └── README.md
