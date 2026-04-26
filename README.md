@@ -31,9 +31,56 @@ sampling_methods/
 ├── output/
 │   └── occupancy_log.csv
 ├── src/
-│   ├── main_script.py
+│   ├── main.py
 │   ├── sort.py
-│   └── point_finder.py
+│   ├── point_finder.py
+│   └── workbench.py
 ├── .env
 ├── requirements.txt
 └── README.md
+```
+
+## Setup
+
+Begin with installing all required packages.
+
+```commandline
+pip install -r requirements.txt
+```
+
+Create a .env file in the project root and add your API key.
+
+```text
+METOCEAN_API_KEY=your_api_key
+```
+
+## Define table zones
+
+Next step is to run "point_finder.py". This script looks in the data/ folder for a file named "video.mp4".
+
+```commandline
+python src/point_finder.py
+```
+
+Right click around where you'd like to define a table zone. 
+When satisfied push the key "c" to get the list of coordinates and paste these coordinates into "src/main.py"
+
+Repeat this process until you have defined all required zones for the footage.
+
+## Checking footage
+
+### workbench.py
+
+This file is used for debugging and visual checking that the script is working correctly on the footage.
+
+It is recommended to use this file before collecting the final data, so you can check.
+
+* Table zones line up correctly
+* people are being detected correctly
+* there are no major artifacts in the footage that would affect the results.
+
+The occupancy data will be written to,
+
+```text
+output/occupancy_log.csv
+```
