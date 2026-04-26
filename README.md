@@ -21,21 +21,35 @@ For each frame in the video, the script:
 3. checks whether each tracked person falls inside a manually defined table zone
 4. counts the number of people in each zone
 5. writes the results to a CSV file at the chosen logging interval
+6. at chosen the chosen logging interval temperature data will be polled 
 
 ## Project structure
 
 ```text
 sampling_methods/
-├── data/
+├── 00_data/
 │   └── video.mp4
-├── output/
-│   └── occupancy_log.csv
-├── src/
+├── 01_src/
+│   ├── .env
 │   ├── 00_point_finder.py
-│   ├── 01_sort.py
-│   ├── 02_workbench.py
-│   └── 03_main.py
-├── .env
+│   ├── 01_workbench.py
+│   ├── 02_main.py
+│   └── sort.py
+├── 02_output/
+│   ├── 00_point_finder.py
+│   ├── 01_workbench.py
+│   ├── 02_main.py
+│   └── sort.py
+├── 03_report/
+│   ├── draft.txt
+│   └── ProjectProposal.Rmd
+├── 04_snapshotting/
+│   ├── mount-data.service
+│   ├── mount_data.sh
+│   ├── README.md
+│   └── recording.service
+├── .gitignore
+├── global.R
 ├── requirements.txt
 └── README.md
 ```
