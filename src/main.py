@@ -110,9 +110,14 @@ def assign_table(box, zones) -> str | None:
     return None
 
 
-def build_weather_time(year, month, day, hour, minute=0):
+def build_weather_time(year, month, day, hour, minute=0) -> str:
     """
     Gives a starting time for weather request to start polling from
+    :param year:
+    :param month:
+    :param day:
+    :param hour:
+    :param minute:
     :return:
     """
     chosen_local = datetime(year, month, day, hour, minute, tzinfo=ZoneInfo("Pacific/Auckland"))
@@ -157,7 +162,10 @@ def get_temperature(lat, lon, site_time) -> float:
 
 def get_cached_temperature(lat, lon, site_time) -> float | None:
     """
-    Caches data for easy on pipeline
+    Caches temperature data for easy on pipeline
+    :param lat:
+    :param lon:
+    :param site_time:
     :return:
     """
     requested_hour = build_weather_time(*site_time)
