@@ -34,12 +34,10 @@ sampling_methods/
 │   ├── 00_point_finder.py
 │   ├── 01_workbench.py
 │   ├── 02_main.py
-│   └── sort.py
+│   ├── sort.py
+│   └── yolov8n.pt
 ├── 02_output/
-│   ├── 00_point_finder.py
-│   ├── 01_workbench.py
-│   ├── 02_main.py
-│   └── sort.py
+│   └── occupancy_log.csv
 ├── 03_report/
 │   ├── draft.txt
 │   └── ProjectProposal.Rmd

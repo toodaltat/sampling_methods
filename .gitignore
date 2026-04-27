@@ -18,6 +18,7 @@ __pycache__/
 02_output/
 00_data/
 *.csv
+*.mp4
 
 # Model weights
 *.pt
