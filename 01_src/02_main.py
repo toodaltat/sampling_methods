@@ -22,8 +22,8 @@ load_dotenv()
 
 # Directory paths
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
-CSV_OUTPUT = os.path.join(BASE_DIR, "output", "occupancy_log.csv")
+VIDEO_SOURCE = os.path.join(BASE_DIR, "00_data", "video.mp4")
+CSV_OUTPUT = os.path.join(BASE_DIR, "02_output", "occupancy_log.csv")
 
 # Model and thresholds
 YOLO_MODEL = "yolov8n.pt"
