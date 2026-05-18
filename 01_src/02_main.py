@@ -27,7 +27,7 @@ CSV_OUTPUT = os.path.join(BASE_DIR, "02_output", "occupancy_log.csv")
 
 # Model and thresholds
 YOLO_MODEL = "yolov8n.pt"
-CONF_THRESHOLD = 0.35  # Detections > 35% confidence to be logged
+CONF_THRESHOLD = 0.15  # Detections > 35% confidence to be logged
 LOGGED_SECONDS = 30.0  # 1/fps is the lowest recommend
 
 # Christchurch
@@ -35,13 +35,15 @@ SITE_LAT = -43.5321
 SITE_LON = 172.6362
 
 # Year/Month/Day/Hour/Min
-RECORDED_START_TIME = datetime(2026, 4, 23, 10, 2, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
+RECORDED_START_TIME = datetime(2026, 5, 13, 10, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
 
 # Use "point_finder.py" to set zones
 TABLE_ZONES = {
-    "table_1": np.array([(1261, 434), (1620, 457), (1598, 635), (1200, 551)], dtype=np.int32),
-    "table_2": np.array([(877, 419), (1073, 427), (1047, 529), (851, 493)], dtype=np.int32),
-    "table_3": np.array([(695, 415), (822, 414), (805, 487), (684, 474)], dtype=np.int32),
+    "table_1": np.array([(13, 1055), (27, 768), (643, 760), (632, 1040)], dtype=np.int32),
+    "table_2": np.array([(700, 1069), (716, 766), (1005, 761), (1097, 1019)], dtype=np.int32),
+    "table_3": np.array([(1031, 764), (1147, 1012), (1363, 930), (1279, 730)], dtype=np.int32),
+    "table_4": np.array([(1286, 1054), (1515, 735), (1908, 841), (1738, 1077)], dtype=np.int32),
+
 }
 
 # Manual input required
@@ -49,7 +51,9 @@ TABLE_INFO = {
     "table_1": {"dist_from_road": 10.0, "in_shadow": 0},
     "table_2": {"dist_from_road": 10.0, "in_shadow": 1},
     "table_3": {"dist_from_road": 10.0, "in_shadow": 1},
+    "table_4": {"dist_from_road": 10.0, "in_shadow": 1},
 }
+
 
 PERSON_CLASS_ID = 0
 

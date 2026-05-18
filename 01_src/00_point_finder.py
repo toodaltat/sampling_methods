@@ -4,7 +4,7 @@ import os
 points = []
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-VIDEO_SOURCE = os.path.join(BASE_DIR, "data", "video.mp4")
+VIDEO_SOURCE = os.path.join(BASE_DIR, "00_data", "video.mp4")
 
 START_FRAME = 150
 

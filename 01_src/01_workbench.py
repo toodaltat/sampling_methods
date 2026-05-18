@@ -35,13 +35,15 @@ SITE_LAT = -43.5321
 SITE_LON = 172.6362
 
 # Year/Month/Day/Hour/Min
-RECORDED_START_TIME = datetime(2026, 4, 23, 9, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
+RECORDED_START_TIME = datetime(2026, 5, 13, 10, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
 
 # Use "point_finder.py" to set zones
 TABLE_ZONES = {
-    "table_1": np.array([(1216, 444), (1626, 493), (1599, 628), (1191, 545)], dtype=np.int32),
-    "table_2": np.array([(868, 426), (1073, 440), (1053, 529), (855, 496)], dtype=np.int32),
-    "table_3": np.array([(706, 426), (791, 432), (776, 487), (694, 472)], dtype=np.int32),
+    "table_1": np.array([(13, 1055), (27, 768), (643, 760), (632, 1040)], dtype=np.int32),
+    "table_2": np.array([(700, 1069), (716, 766), (1005, 761), (1097, 1019)], dtype=np.int32),
+    "table_3": np.array([(1031, 764), (1147, 1012), (1363, 930), (1279, 730)], dtype=np.int32),
+    "table_4": np.array([(1286, 1054), (1515, 735), (1908, 841), (1738, 1077)], dtype=np.int32),
+
 }
 
 # Manual input required
@@ -49,6 +51,7 @@ TABLE_INFO = {
     "table_1": {"dist_from_road": 10.0, "in_shadow": 0},
     "table_2": {"dist_from_road": 10.0, "in_shadow": 1},
     "table_3": {"dist_from_road": 10.0, "in_shadow": 1},
+    "table_4": {"dist_from_road": 10.0, "in_shadow": 1},
 }
 
 PERSON_CLASS_ID = 0
@@ -173,6 +176,9 @@ def get_temperature(lat, lon, site_time) -> float:
 
     data = r.json()
     temp_k = data["variables"]["air.temperature.at-2m"]["data"][0]
+    if temp_k is None:
+        raise ValueError(f"No temperature returned for {from_time}")
+
     return round(temp_k - 273.15, 2)
 
 
