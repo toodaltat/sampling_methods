@@ -27,7 +27,7 @@ CSV_OUTPUT = os.path.join(BASE_DIR, "02_output", "occupancy_log.csv")
 
 # Model and thresholds
 YOLO_MODEL = "yolov8n.pt"
-CONF_THRESHOLD = 0.20  # Detections > 35% confidence to be logged
+CONF_THRESHOLD = 0.35  # Detections > 35% confidence to be logged
 LOGGED_SECONDS = 30.0  # 1/fps is the lowest recommend
 
 # Christchurch
@@ -35,7 +35,7 @@ SITE_LAT = -43.5321
 SITE_LON = 172.6362
 
 # Year/Month/Day/Hour/Min
-RECORDED_START_TIME = datetime(2026, 4, 23, 9, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
+RECORDED_START_TIME = datetime(2026, 5, 12, 10, 0, 0, tzinfo=ZoneInfo("Pacific/Auckland"))
 
 # Use "point_finder.py" to set zones
 TABLE_ZONES = {
