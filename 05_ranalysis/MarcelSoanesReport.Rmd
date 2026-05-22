@@ -1,0 +1,222 @@
+---
+title: "Public Space Utilization: Data Collection and Analysis Report"
+author: "Marcel Soanes (22748250)"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align = "center")
+library(MASS)
+
+df <- read.csv("smoothed_occupancy_log.csv")
+df$timestamp <- as.POSIXct(df$timestamp, format = "%d-%m-%Y %H:%M:%OS")
+df$date      <- as.Date(df$timestamp)
+df$hour      <- as.numeric(format(df$timestamp, "%H"))
+df$minute_of_day <- as.numeric(format(df$timestamp, "%H")) * 60 +
+                    as.numeric(format(df$timestamp, "%M"))
+df$close_to_entry <- as.integer(df$close_to_entry == "True")
+```
+
+# Introduction
+
+
+<!-- 
+  A paragraph or two. What's the research question? Something like:
+  - What physical/environmental factors affect which outdoor tables people choose to sit at?
+  - Factors of interest: distance from road, shade, temperature, proximity to entry
+  - Brief note on why this is interesting (urban design, hospitality, etc.)
+  - One sentence previewing the structure: we collected data using CV, ran into 
+    methodological issues, and reflect on what we'd do differently.
+-->
+
+
+# Data and Data Collection
+
+## Study Location
+
+Initially data was to be collected from a portion of Cathedral Square, and we intended for the data to be collected over the whole day from 10am to 5pm. This data collection was cut short on the intended day due to cleaning works and on reconsideration we decided to collect instead from multiple days at university, so we could collect data more frequently and hopefully capture some more variance in variables like temperature. 
+
+The site we selected was at the Eastern corner of Puaka, near an exit from the Undercroft, and we recorded 4 tables and their occupancy. 
+
+## Recording Setup
+
+The recording setup consisted of a Raspberry Pi 4 with a standard headless Raspberry Pi OS on an SD card, a 10000mAh USB power bank, two USB sticks, a USB webcam, a tripod. Initially we intended to be able to leave the setup unattended to record for extended periods, but in practice when we were testing the set up there were more 
+
+## Privacy Considerations
+
+To ensure that the theft of the recording equipment wouldn't result in the violation of peoples' privacy we considered carefully how to manage that. In the end, we used a setup with two USB storage sticks. One held an encryption key, and the other an encrypted volume. On device power-on, a systemd service would run to mount the USB holding the key, use that to decrypt the other, and unmount the key drive. Then another service could begin the recording functionality, saving the video in 10 minute snippets to the encrypted volume. We could then remove the key drive and let the recording run.
+
+This means that if the recording equipment were stolen or lost, the data would be inaccessible after the device was powered off, ensuring that whoever stole it wouldn't have access to the recordings, preserving people's privacy.
+
+
+## Variables Recorded
+
+```{r data-overview}
+cat(sprintf("Observations: %d\nTables: %d\nRecording days: %d\n",
+    nrow(df), length(unique(df$table)), length(unique(df$date))))
+
+cat("\nRecording windows:\n")
+for (d in as.character(unique(df$date))) {
+  dsub <- df[df$date == as.Date(d), ]
+  cat(sprintf("  %s: %s – %s (%.0f min)\n", d,
+      format(min(dsub$timestamp), "%H:%M"),
+      format(max(dsub$timestamp), "%H:%M"),
+      as.numeric(difftime(max(dsub$timestamp), min(dsub$timestamp), units = "mins"))))
+}
+```
+
+Our recorded columns were:
+timestamp: The time each observation was made, at 30s intervals
+table: A factor for each table from 1 to four
+occupancy: The count of people the CV system detected at that table at that time
+dist_from_road: The distance from the table to the walkway. In our original analysis this was going to be the distance from the seating location to the road and we neglected to rename it when it was repurposed. 
+in_shadow: A binary variable that changes over time as the sun moves
+temp: Temperature in degrees celsius at that time according to Metservice
+close_to_entry: A binary 
+
+```{r summary-table}
+knitr::kable(summary(df[, c("occupancy", "dist_from_road", "in_shadow", "temp")]),
+             caption = "Summary statistics of key variables")
+```
+
+
+# Data Quality and Limitations
+
+
+## Temporal Autocorrelation
+
+One of the biggest problems is that sampling every 30s for something that changes much less often means observations are strongly correlated with prior and subsequent observations. Our ostensible sample size is much larger than the actual amount of information we collected, and our data points are very much not i.i.d.
+
+```{r acf-plots, fig.width=8, fig.height=6, fig.cap="Autocorrelation functions by table. Dashed blue lines indicate 95% confidence bounds. All tables show strong positive autocorrelation persisting well beyond 10 lags (5 minutes)."}
+par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))
+tables  <- c("table_1", "table_2", "table_3", "table_4")
+colours <- c("#4A90D9", "#D94A4A", "#4AD980", "#D9A84A")
+for (i in seq_along(tables)) {
+  sub <- df[df$table == tables[i], ]
+  sub <- sub[order(sub$timestamp), ]
+  acf(sub$occupancy, lag.max = 20, main = tables[i], col = colours[i], lwd = 2)
+}
+```
+
+```{r effective-n}
+cat("Effective sample sizes (lag-1 ACF correction):\n\n")
+for (tbl in tables) {
+  sub  <- df[df$table == tbl, ]
+  sub  <- sub[order(sub$timestamp), ]
+  occ  <- sub$occupancy
+  rho1 <- acf(occ, lag.max = 1, plot = FALSE)$acf[2]
+  n    <- length(occ)
+  n_eff <- n * (1 - rho1) / (1 + rho1)
+  cat(sprintf("  %s: n = %d, lag-1 ACF = %.2f, effective n approx. %.0f (%.0f%% reduction)\n",
+      tbl, n, rho1, n_eff, (1 - n_eff / n) * 100))
+}
+```
+
+According to the autocorrelation function on the , our effective sample sizes are roughly 16–66 per table, down from 271.
+
+Our regression standard errors are substantially underestimated and most "significant" results from naive models can't be trusted.
+
+## CV Detection Noise
+
+The computer vision system used, YOLO, detected people sitting at a table by checking whether the bounding box for them intersected with table regions defined by us. If we had a birds eye view of the scene, this might have been less of a problem, but as it is people passing in front of or behind the given table registered as occupants. Momentary detection failures could also occur if the CV model didn't recognize the 
+
+## Limited Sampling
+
+We successfully recorded on just three days, the 12th, 13th and 15th of May. The data for the 14th of May wasn't collected due to a failure in the recording setup. Our recording sessions were short, since the recording equipment had to be supervised to prevent theft.  
+
+Our time of day variation is extremely limited, due to the limitations in our schedules for when we could record for extended periods, and the range in temperature is narrow which makes it hard to detect an effect. Temperature effects cannot be separated from the day effect.
+
+# Data Processing
+
+## Computer Vision Pipeline
+
+We used YOLO computer vision to produce bounding boxes around people, and counted an occupancy as when a person's bounding box intersected with the table to a sufficient degree, which let us output a per-observation count of how many people were sitting at each table. This is not a perfect estimate - there may be other reasons someone would intersect with our drawn boundaries. 
+
+## Smoothing
+
+To mitigate false detections from people walking past or CV glitches, we attempted a smoothing step where if a single sample differed from both of its neighbours, and the neighbouring points agreed with each other, we would replace its value with those of its neighbours. This should help remove some measurement noise from our data, but not all. Multiple people passing by at near times, or times when it was a busy, would not have been mitigated 
+
+# Analysis and Results
+
+## Exploratory Data Analysis
+
+```{r eda-occupancy, fig.width=8, fig.height=4, fig.cap="Occupancy distribution and per-table breakdown."}
+par(mfrow = c(1, 3), mar = c(4, 4, 3, 1))
+hist(df$occupancy, breaks = seq(-0.5, max(df$occupancy) + 0.5, 1),
+     col = "#4A90D9", main = "Occupancy Distribution", xlab = "Count", ylab = "Frequency")
+boxplot(occupancy ~ table, data = df, col = colours,
+        main = "Occupancy by Table", ylab = "Occupancy")
+boxplot(occupancy ~ date, data = df, col = colours,
+        main = "Occupancy by Date", ylab = "Occupancy")
+```
+
+The median number of people recorded as sitting at a table was one, and the mode is 0, meaning the 
+
+## Regression Modelling
+
+Given the autocorrelation issues discussed earlier, the results given here should be interpreted cautiously. The p-values will be unrealistically optimistic and the actual standard errors are higher than shown here.
+
+```{r nb-model}
+nb_mod <- glm.nb(occupancy ~ dist_from_road + in_shadow + temp +
+                   close_to_entry + hour + factor(date), data = df)
+
+cat("Negative Binomial regression — rate ratios:\n\n")
+coefs <- summary(nb_mod)$coefficients
+rr    <- exp(coefs[, "Estimate"])
+ci_lo <- exp(coefs[, "Estimate"] - 1.96 * coefs[, "Std. Error"])
+ci_hi <- exp(coefs[, "Estimate"] + 1.96 * coefs[, "Std. Error"])
+pv    <- coefs[, "Pr(>|z|)"]
+
+for (i in 2:nrow(coefs)) {
+  sig <- ifelse(pv[i] < 0.001, "***", ifelse(pv[i] < 0.05, "*", ""))
+  cat(sprintf("  %-28s RR = %.2f [%.2f, %.2f]  p = %.4f %s\n",
+      rownames(coefs)[i], rr[i], ci_lo[i], ci_hi[i], pv[i], sig))
+}
+cat(sprintf("\nAIC: %.1f\n", AIC(nb_mod)))
+```
+
+Given the distribution of our data we used a negative binomial distribution to model. The distribution of the data is very low at 8+ so even though a negative binomial has infinite support in practice counts are sufficiently low at high values that the distribution still approximates. Poisson had overdispersion given the difference in mean and variance. 
+
+The only effect we can see here is that occupancy varied significantly by date, given that temperature varied with date and is very much confounded. Whether or not a table was in shadow or not, near to the entry or not, or which hour block an observation was in, were not useful predictors. 
+
+# Discussion
+
+## What Worked
+
+The recording hardware set up did work well and ensured the primary risk of leaving the hardware unattended was theft and not privacy concerns. With longer, and a greater number of, recording periods it could have proved useful. The CV pipeline  wasn't perfectly reliable but we did get some signal out of it, and with a better viewing angle (e.g. from a few stories up, angled down) we could have improved its reliability further. 
+
+## What Didn't
+
+Our study design had a lot of autocorrelated data, whereas fewer datapoint that were more independent across more varied conditions would've provided a lot more value. The limited number of days we recorded at also means we didn't have enough variance in temperature to The computer vision measurement noise might require further filtering, as our initial approach is fairly naive and 
+
+## What We'd Do Differently
+
+To effectively answer the research question we would need more variance in our relevant measured predictor variables and should improve our sampling methods to capture more of that. 
+
+While the hardware and software set up was something that could prove useful with more, in the end it wasn't something that suited our purposes well for this project. The marginal value of the additional data was limited, compared to the time and effort needed to set up, monitor, and take down the equipment each time. 
+
+Collecting data manually, at a greater variety of locations and times, could have provided much more variance in conditions like temperature and sunlight while mitigating the unintended effects of factors we were less interested in, like the day of the week, for a similar amount of effort. Noting down the time, date, conditions and which seats are occupied could have been something done with a clipboard and paper. 
+
+Alternatively, streamlining the setup and teardown of the recording system and capturing shorter sessions at a greater variety of times and days could have provided more useful. The CV filtering could perhaps be improved by recording the modal occupancy over a window rather than a snapshot of a particular frame. 
+
+# Conclusion
+
+Our initial research question was to see if factors like sunlight, temperature, and distance to roads affected outdoor seating decisions. We built a privacy-conscious CV data collection system, but analysis revealed that the time density created problems of autocorrelation that could inflate already dubious significance, and the limited number of recording days limited what we could conclude. 
+
+The main lesson learned here is that ensuring our data has sufficient variance in the predictive variables is vital, and that while our data collection method did solve problems with regards to data security and privacy when recording video people in public spaces, an alternative method could have provided more useful data without needing to worry about collecting images of people in the first place. 
+
+# References and Auxiliary Data
+
+Generative AI was used to assist in data processing and CV code, and in formatting tables and graphs for final analysis output. 
+
+MetService. (2026). Christchurch temperature observations, May 2026 https://www.metservice.com
+
+Github repository: https://github.com/toodaltat/sampling_methods/
