@@ -8,6 +8,7 @@ This project processes a recorded video and at fixed time intervals, logs:
 - timestamp
 - occupancy count at each unique table
 - distance from road
+- close to main entry point
 - whether the table is in shadow
 - temperature
 
@@ -34,14 +35,22 @@ sampling_methods/
 │   ├── 00_point_finder.py
 │   ├── 01_workbench.py
 │   ├── 02_main.py
+│   ├── 03_cleaning.py
+│   ├── 04_smoothing.py
 │   ├── sort.py
 │   └── yolov8n.pt
 ├── 02_output/
-│   └── occupancy_log.csv
-├── 03_report/
+│   ├── cleaned_occupancy_log.csv
+│   ├── occupancy_log.csv
+│   └── smoothed_occupancy_log.csv
+├── 03_analysis/
+│   └── analysis.R
+├── 04_report/
 │   ├── draft.txt
-│   └── ProjectProposal.Rmd
-├── 04_snapshotting/
+│   ├── ProjectProposal.Rmd
+│   ├── ethan_report.pdf
+│   └── report.Rmd
+├── 04_drive_encryption/
 │   ├── mount-data.service
 │   ├── mount_data.sh
 │   ├── README.md
@@ -49,15 +58,21 @@ sampling_methods/
 ├── .gitignore
 ├── global.R
 ├── requirements.txt
+├── requirements.R
 └── README.md
 ```
 
 ## Setup
 
-Begin with installing all required packages.
+Begin with installing python all required packages.
 
 ```commandline
 pip install -r requirements.txt
+```
+To install the R packages needed for the report, run:
+
+```r
+source("requirements.R")
 ```
 
 Create a .env file in the project root and add your API key.
@@ -68,14 +83,14 @@ METOCEAN_API_KEY=your_api_key
 
 ## Define table zones
 
-Next step is to run "point_finder.py". This script looks in the data/ folder for a file named "video.mp4".
+Next step is to run "00_point_finder.py". This script looks in the 00_data/ folder for a file named "video.mp4".
 
 ```commandline
-python src/point_finder.py
+python src/00_point_finder.py
 ```
 
 Right click around where you'd like to define a table zone. 
-When satisfied push the key "c" to get the list of coordinates and paste these coordinates into "src/main.py"
+When satisfied push the key "c" to get the list of coordinates and paste these coordinates into "src/02_main.py"
 
 Repeat this process until you have defined all required zones for the footage.
 
@@ -94,5 +109,9 @@ It is recommended to use this file before collecting the final data, so you can 
 The occupancy data will be written to,
 
 ```text
-output/occupancy_log.csv
+02_output/occupancy_log.csv
 ```
+
+## Analysis and report
+
+This was done with the use of R studio

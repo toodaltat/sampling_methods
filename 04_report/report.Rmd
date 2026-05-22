@@ -1,0 +1,196 @@
+---
+title: "Report"
+author: "74465159 Ethan Milne"
+date: "2026-05-22"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+    extra_dependencies: ["booktabs", "float"]
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(kableExtra)
+library(knitr)
+source("../03_analysis/analysis.R")
+```
+
+# Introduction
+
+This project investigates whether environmental factors influence seating choice at UC. We examined whether table occupancy differs depending on shade coverage, temperature, distance from main walking thoroughfare and if the table is close or far to the entry point. Understanding whether these factors play a role in table occupancy helps enable designers to create a seating spaces that are more appealing thus more used.
+
+The study used a convenience sampling design due to practical constraints. The footage was systematically sampled in 30 second intervals. Our sample frame is not adequate enough to infer if these behaviors hold in different locations around UC but we will be able to conclude if these effects have an affect on UC students seating choice at our target location.
+
+We had to deviate from our proposal outline due to physical constraints. We shifted from cathedral square to UC thus we changed the parameter of distance from road to distance from the main walk way by the seating at UC and include if the table was close or far to the main entry point.
+
+# Data collection
+
+Footage was recorded at an outdoor seating area on University grounds and stored on an encrypted drive. Then it was processed using a computer vision pipeline. YOLO object detection model was used to detect people. Only detections above a confidence threshold of 0.35 were kept and these detections were passed to a SORT style tracker, which maintained detections across frames. 
+
+To build the table zones we ran a separate script "00_point_finder.py". This takes the 150th frame from the footage and allows the user to put polygon points on the image by clicking. These polygon points were then used in the main script to define the table zone. A person was counted as occupying the table if the bottom center point of their detection box fell within that table's defined polygon zone. 
+
+The footage was systematically sampled at 30 second intervals. At each interval the script recorded the time stamp, table ID, occupancy and the temperature at the time of recording. Other factors such as in shade, distance from walkway and close to entry point are fixed values which do not change of the time of recording as they are directly tied to table ID. Temperature was obtained using Metocean's api and cached hourly to avoid polling issues. Our final dataset consisted of repeated observations of each table over time allowing occupancy to be compared with environmental factors and spatial factors.
+
+# Quality and limits
+
+This study used a convenience sample strategy as equipment and access were major barriers when collecting the data. Ideally we would of simultaneously recorded most if not all outdoor seating locations and done this over many days and varying time slots. Due to this we have a baked in sampling bias as we selected an area out of convenience rather than random sampling from all possible seating locations and times.
+
+Acknowledging that the YOLO detection model may have overcounted or undercounted people we now have measurement bias. Our major concern was with table 3 and 4 since they are right by the entry point to the seating area as the script would also be counting people passing by. To compensate this Marcel introduced a smoothing process.
+
+When modeling our findings we have to be aware that our estimates of environmental factors are strongly linked to the table ID. Since we are only working with four tables in one location and only over three days we have high variance and bias as it is difficult to separate how these factors act on occupancy of a table.
+
+Since classes start on the hour, we expected to see movement around these times which may have affected table occupancy. Some occupancy patterns may reflect timetable driven movement rather than environmental factors alone.  
+
+To not encroach on the people's privacy we went against recognition software. The script counted heads rather than identifying individuals which meant we could not tell if the same person moved between tables or left and returned. This also restricted our regression model as our observations are not independent as occupancy at one time is likely related to occupancy in the next interval. This means the models standard errors and p-values will overstate the importance of particular factors.
+
+If we had an ideal world our script would know whose sitting down and we would have a more defined sample frame holding more locations and times. With this we would be able to apply a SRSWOR and start to reduce our bias and variance. As a result of this lack of clearly defined sampling frame we can not infer our findings to predict other locations chance of occupancy but we can see if we get signal from any of the factors.
+
+# Data processing
+
+To begin processing first we had to clean and modify our data. This involved, setting the time stamps to be in accordance with the footage time stamps, adding a new column which identified whether a table was close to the main entry point or far away from it, set the distance from the walkway to the correct distance in meters and update our in shade factor to correctly represent whether a table was in shade or not.
+
+Next Marcel introduced an idea of dealing with the issue of YOLO detecting people who are not sitting down but crossing the table zone and being counted. By taking the value prior and the following value if the middle value was different it would take on the value before. The percentage of entries changed by this method was 16.6% and now with the data cleaned and smoothed we could begin our analysis.
+
+
+# Analysis
+
+Through some simple plots we were able to see how the factors may impact our response variable. Figure one shows occupancy and temperature where we see the mean occupancy sits higher on warmer days which aligns with existing human behaviors around sitting outside.
+```{r temp_occupancy_plot, fig.align='center', fig.width=6, fig.height=4, out.width='75%', echo=FALSE, include=TRUE}
+temp_occupancy_plot
+```
+
+Figure two indicates there might be a relationship between occupancy and how close the table is to the main entry point. With this we have to be cautious that the reason we are seeing a higher count with tables 3 and 4 being closer to the entry point is because the machine vision was counting people walking through the defined table zones. Ideally we hope this captures that people entering this seating area are using it to quickly check there phone or tie there shoes.
+```{r entry_occupancy_plot, fig.align='center', fig.width=6, fig.height=4, out.width='75%', echo=FALSE, include=TRUE}
+entry_occupancy_plot
+```
+
+Since there is a higher count for tables being used that are closer to the entry point this lead us to investigating how long a table would be occupied for to see if it aligns with our prior knowledge of why someone would use a table for a shorter period of time and we found these results.
+```{r, echo=FALSE, include=TRUE}
+knitr::kable(
+  run_summary_table,
+  caption = "Summary of occupancy duration by entry proximity",
+  booktabs = TRUE,
+  align = "lccccc"
+) %>%
+  kableExtra::kable_styling(
+    latex_options = c("hold_position", "scale_down"),
+    position = "center",
+    full_width = FALSE
+  )
+```
+
+The means are almost identical but we see a stark difference in the median duration. This may suggest that the tables closest to the entry point were used by smaller groups and for shorter periods of time aligning with our assumption that people use those tables as a pit stop point. Again we have to highlight that these figures need to be interpreted with caution due to our weak sampling frame.
+
+Before moving into fitting models we want to check our zero count so that we understand how often tables are used. This helped guide us in deciding the modelling approach because a high zero count introduces two questions, whether a table is occupied at all and how many people are at a table once it has a occupancy greater than one.
+```{r, echo=FALSE, include=TRUE}
+kable(
+  zero_summary_clean,
+  caption = "Summary of zero and occupied table observations",
+  booktabs = TRUE,
+  align = "cccc"
+) %>%
+  kableExtra::kable_styling(
+    latex_options = c("hold_position"),
+    position = "center",
+    full_width = FALSE
+  )
+```
+
+After a investigating the data we noticed that the zero count is taking up 39% of the data set. For this reason we used a logistic regression model for occupied vs unoccupied, followed by a Poisson model for occupancy counts among occupied tables. By fitting a logistic regression model we investigated whether environmental factors were associated with table occupancy. Since our predictors are highly correlated with table ID we decided against including it in the model.
+
+$$
+\log\left(\frac{p_i}{1 - p_i}\right)
+=
+\beta_0
++ \beta_1 \text{in\_shadow}_i
++ \beta_2 \text{temp}_i
++ \beta_3 \text{dist\_from\_road}_i
++ \beta_4 \text{close\_to\_entry}_i
++ \gamma_{\text{date}[i]}
++ \beta_5 \text{hour}_i
+$$
+
+```{r, echo=FALSE, include=TRUE}
+kable(
+  logistic_results,
+  caption = "Logistic regression results for table occupancy",
+  align = "lccc"
+)
+```
+
+This model shows that temperature and date are the main drivers of predictive power towards occupancy count. With temperature having an odds ratio of $0.56$ this goes against what we saw in figure one and our natural intuition that warmer days would have more people sitting outside. Due to a small data set the model seems to be attempting to separate effects that are difficult to distinguish. This is likely to occur because temperature is strongly linked to date and time. Shade, distance from walkway, close to entry and hour did not show strong evidence of driving predictive power.
+
+Now looking at only entries when tables have an occupancy of one or greater we fit a Poisson model. This model aims to examine whether the same factors were associated with the number of people at a table. Taking account that the dispersion value sits around $0.451$ we must take this model as strictly exploratory.
+
+$$
+\log(\lambda_i)
+=
+\beta_0
++ \beta_1 \text{in\_shadow}_i
++ \beta_2 \text{temp}_i
++ \beta_3 \text{dist\_from\_road}_i
++ \beta_4 \text{close\_to\_entry}_i
++ \beta_5 \text{hour}_i
++ \text{date effect}_i
+$$
+
+```{r, echo=FALSE, include=TRUE}
+kable(
+  count_results,
+  caption = paste0(
+    "Poisson regression results for occupancy count among occupied tables. ",
+    "Pearson dispersion = ",
+    round(dispersion, 3),
+    "."
+  ),
+  align = "lcccc"
+)
+```
+
+The Poisson model shows a similar pattern. Where tables were already occupied, temperature and date where the strong predictors for occupancy count. The rate ratio for temperature was $0.647$ suggesting higher temperature is associated with lower occupancy count which again goes against figure one and natural intuition. We do see that close to entry point has a rate ratio of $1.399$ which does align with figure two suggesting tables closer to the entry point have a higher occupancy rate but with $p = 0.061$ it was not significant within the model.
+
+Overall the analysis suggest that date and temperature were strongly associated with occupancy. But as all our factors are either tied to specific days or table locations these results should not be interpreted as causal but rather exploratory.
+
+# Discussion
+
+Our plots showed that warmer days had higher mean occupancy. However, the regression models showed a negative relationship between temperature and occupancy. This difference highlights one of the main hurdles in this study which is that most of our environmental factors are not independent of each other. To be explicit table ID, distance from walkway or entry point, date and shade were all partly connected making it difficult to isolate the individual effect of each factor.
+
+Distance from main entry point shows some evidence of driving table occupancy but the evidence was not strong enough to make any strong statements even though the box plot suggest that tables closer to the entry point have higher occupancy. However, the duration analysis showed that these tables had a shorter median occupation duration and a lower mean occupancy during the continuous lengths of engagement the table had. It is hard to tell whether these tables were used as pit stops or our machine vision was counting people passing by. Even after smoothing values we can not be sure of what is causing this signal.
+
+Currently shade and distance from walkway do not show strong evidence of predictive power for occupancy in the models. Moving forward with a more robust sampling frame which would hold more locations thus helping the model to separate the impact these factors might have on table ID in one location.
+
+Getting a zero count summary helped support the decision to use two models. Since $39\%$ of observations had zero occupancy we chose to investigate two questions one being whats the impact of factors towards our response and when our response has some signal what factors impact that. To reiterate both models must be taken as exploratory as observations were repeated over time therefore are not fully independent. Achieving independence would require employing facial recognition software and we do not have the infrastructure or experience to hold such invasive data about the public.
+
+This study provides weak evidence that environmental factors may influence seating behavior at our particular location on UC campus. The clearest pattern was that occupancy varied between days and that tables close to the entry point see more activity. However, due to undergoing a convenience sample which may hold measurement bias from the computer detection and the almost non-existent sampling frame, these findings can not be generalized to all UC seating areas. Future studies would capture more tables across different locations on campus to allow the model to separate environmental factors from table ID. If future studies find stronger evidence of predictive power, the research could be expanded to other locations around Christchurch. This would provide stronger evidence for city designers when planning outdoor seating spaces.
+
+# Conclusion
+
+This study found exploratory evidence that outdoor seating occupancy at the selected UC location was associated with date, temperature, and possibly entry proximity. The clearest pattern was that occupancy differed between observation days, while tables closer to the entry point showed signs of higher activity but shorter typical use. However, because the study used a convenience sample of only four tables, and because environmental factors were strongly tied to table identity, the results cannot be treated as causal or generalized to all UC seating areas.
+
+Future work should use a stronger sampling frame by observing more tables across multiple campus locations, days, and time periods. This would make it easier to separate the effects of temperature, shade, distance, and entry proximity from the specific characteristics of individual tables.
+
+# References
+
+Generative AI was used heavily to build the YOLO detection and sort script. In other cases it was used to tidy tables, graphs and help with processing scripts.
+
+## R
+Posit team (2025). RStudio: Integrated Development Environment for R. Posit Software, PBC,
+Boston, MA. URL http://www.posit.co/.
+
+R version 4.5.1 (2025-06-13 ucrt)
+
+Platform: x86_64-w64-mingw32/x64
+
+Running under: Windows 11 x64 (build 26200)
+
+release_name: "Mariposa Orchid"
+
+## Python
+
+3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]
+
+Ultralytics. (2026). Ultralytics YOLO [Computer software]. https://github.com/ultralytics/ultralytics
+
+## Git hub
+
+https://github.com/toodaltat/sampling_methods
