@@ -64,7 +64,7 @@ entry_occupancy_plot <- ggplot(df, aes(x = close_to_entry, y = occupancy)) +
     x = "Close to Entry",
     y = "Occupancy Count"
   )
-
+ggsave("dist_occupancy_plot.png", entry_occupancy_plot, width = 8, height = 5, dpi = 300)
 ###################################
 # Length of occupancy
 ###################################
